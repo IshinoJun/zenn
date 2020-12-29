@@ -3,7 +3,7 @@ title: "最近話題の「frourio」を無料でサクッとデプロイする�
 emoji: "🐶"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["frourio", "Vercel", "Heroku", "TypeScript"]
-published: false
+published: true
 ---
 
 # はじめに
