@@ -238,6 +238,7 @@ $ heroku config
 Dockerベースでアプリをデプロイします。
 
 ```text:Terminal
+$ heroku container：login
 $ heroku container:push web
 $ heroku container:release web
 ```
