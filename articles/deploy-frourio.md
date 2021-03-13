@@ -90,9 +90,7 @@ RUN mkdir /src/server
 
 WORKDIR /src
 
-COPY package*.json ./
-COPY /server/package*.json ./server
-RUN yarn install
+COPY /server/package.json /server/yarn.lock ./server/
 RUN yarn install --cwd ./server
 
 COPY . .
@@ -161,7 +159,7 @@ fastify.listen(SERVER_PORT, SERVER_IP)
 
 ## Prisma のバージョン変更
 
-本日時点（2020/12/29）で Prisma は クラウドベースのデータベース（Herokuなど）にMigrateするとshadow database の作成が出来ず[エラー](https://www.prisma.io/docs/concepts/components/prisma-migrate#shadow-database)が発生します。こちらの[issue](https://github.com/prisma/prisma/issues/4751)でサポートを検討しているようですが、現時点では Prisma のバージョンを 2.12.0 に落とす必要がありそうなので、その変更を行います。
+~~本日時点（2020/12/29）で Prisma は クラウドベースのデータベース（Herokuなど）にMigrateするとshadow database の作成が出来ず[エラー](https://www.prisma.io/docs/concepts/components/prisma-migrate#shadow-database)が発生します。こちらの[issue](https://github.com/prisma/prisma/issues/4751)でサポートを検討しているようですが、現時点では Prisma のバージョンを 2.12.0 に落とす必要がありそうなので、その変更を行います。~~
 
 ```json:server/package.json
 ※ 修正箇所のみ抜粋
@@ -177,8 +175,19 @@ fastify.listen(SERVER_PORT, SERVER_IP)
 ```
 
 :::message
-Prisma は 2.13.0 でマイグレーション方法に破壊的変更が行われています。念の為、バージョンを落としても手元で動作するか確認すると良いでしょう。
+~~Prisma は 2.13.0 でマイグレーション方法に破壊的変更が行われています。念の為、バージョンを落としても手元で動作するか確認すると良いでしょう。~~
 :::
+
+こちらの不具合ですが、[2.17.0](https://github.com/prisma/prisma/releases/tag/2.17.0)で解決されました🎉
+development databaseとは別にもう一つshadow databaseを追加で指定することで解決します。そのため、`schema.prisma` に以下を追加します。
+
+```text:server/prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
++  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+```
  
 # バックエンドのデプロイ
 
@@ -201,7 +210,7 @@ $ heroku git:remote -a <PROJECT_NAME>
 
 ## Heroku Postgres をアタッチ
 
-アプリにDBを持たせるために以下のコマンドを実行します。今回は無料で利用したいので、`hobby-dev`のプランを選択しています。
+アプリにDBを持たせるために以下のコマンドを実行します。今回は無料で利用したいので、`hobby-dev`のプランを選択しています。development databaseとshadow database用の2つを用意してください。
 
 ```text:Terminal
 $ heroku addons:create heroku-postgresql:hobby-dev
@@ -216,10 +225,11 @@ $ heroku config:set ENV_VAR_NAME="value"
 ```
 
 今回は以下を追加しています。`APP_URL`は先ほどプロジェクト作成した時にメモしたURLになります。
-`DATABASE_URL`は GUI の`Resources > 該当のDB > Settings > Database Credentials > View Credentials`の`URI`になります。
+`DATABASE_URL`と`SHADOW_DATABASE_URL`は GUI の`Resources > 該当のDB > Settings > Database Credentials > View Credentials`の`URI`になります。
 
 ```text:環境変数
 DATABASE_URL=<DATABASE_URL>
+SHADOW_DATABASE_URL=<DATABASE_URL>
 SERVER_IP="0.0.0.0"
 JWT_SECRET=supersecret
 USER_ID=id
