@@ -52,7 +52,7 @@ Heroku Postgres などのSQLデータベースも提供しているので、デ�
 
 ## コマンド一発で環境構築
 
-[create-frourio-app](//github.com/frouriojs/create-frourio-app) で楽に環境構築していきます。
+[create-frourio-app](//github.com/frouriojs/create-frourio-app) で楽に環境構築していきます。ご紹介するバージョンは`0.28.0`になります。
 
 ```text:Terminal
 $ yarn create frourio-app
@@ -68,12 +68,16 @@ $ yarn create frourio-app
 - Client framework : `Next.js (React)`
 - Building mode : `Static (export)`
 - HTTP client of aspida : `axios`
-- Deamon process manager : `None`
+- React Hooks for data fetching : `SWR`
+- Daemon process manager : `None`
 - O/R mapping tool : `Prisma (recommended)`
 - Database type of Prisma : `PostgreSQL`
+- Skip DB connection checks : `No`
 - Testing framework : `Jest`
 - Package manager : `Yarn`
 - CI config : `None`
+- API server hosting : `None`
+- Static hosting service : `Vercel`
 
 これで数分待つと環境が出来上がります！とても簡単ですね。
 ただ、このままではデプロイしても動作しません。細かな設定を変えていきます。
@@ -96,7 +100,7 @@ RUN yarn install --cwd ./server
 COPY . .
 
 EXPOSE 8080
-CMD yarn build:server && yarn start:server
+CMD yarn migrate:dev && yarn generate:server && yarn build:server && yarn start:server
 ```
 
 ```yml:docker-compose.yml
@@ -125,8 +129,9 @@ services:
 Heroku は動的にポート番号が生成されます。そのため、デフォルトでHerokuの環境に設定されている `PORT` という環境変数を指定するよう修正します。
 
 2. アドレスの変更
-Fastify はデフォルトでリッスンするホストが`127.0.0.1（localhost）`になっており、docker環境にそのままデプロイしてもAPIのエンドポイントに接続出来ません。
-それは、ホストのlocalhostとdockerのlocalhostは違うからです。なので別ホストから接続が出来るように `0.0.0.0` でリッスンするよう修正します。
+こちら[create-frourio-app](//github.com/frouriojs/create-frourio-app)でデフォルト`0.0.0.0`で設定されるようになったので対応不要になりました。
+~~Fastify はデフォルトでリッスンするホストが`127.0.0.1（localhost）`になっており、docker環境にそのままデプロイしてもAPIのエンドポイントに接続出来ません。
+それは、ホストのlocalhostとdockerのlocalhostは違うからです。なので別ホストから接続が出来るように `0.0.0.0` でリッスンするよう修正します。~~
 
 :::message
 `0.0.0.0`にする場合はセキュリティリスクが伴います。（MongoDBの時だけかも）
@@ -136,27 +141,12 @@ https://github.com/fastify/fastify#note
 
 ```ts:server/service/envValues.ts
 ※ 修正箇所のみ抜粋
-const SERVER_PORT = process.env.PORT ?? process.env.SERVER_PORT ?? '8080'
-const SERVER_IP = process.env.SERVER_IP ?? ''
+const SERVER_PORT = process.env.PORT ?? process.env.API_SERVER_PORT ?? '8080'
 
 export {
-  SERVER_PORT,
-  SERVER_IP
+  SERVER_PORT
 }
 ```
-
-```ts:server/index.ts
-※ 修正箇所のみ抜粋
-import {
-  JWT_SECRET,
-  SERVER_PORT,
-  BASE_PATH,
-  SERVER_IP
-} from './service/envValues'
-
-fastify.listen(SERVER_PORT, SERVER_IP)
-```
-
 ## Prisma のバージョン変更
 
 ~~本日時点（2020/12/29）で Prisma は クラウドベースのデータベース（Herokuなど）にMigrateするとshadow database の作成が出来ず[エラー](https://www.prisma.io/docs/concepts/components/prisma-migrate#shadow-database)が発生します。こちらの[issue](https://github.com/prisma/prisma/issues/4751)でサポートを検討しているようですが、現時点では Prisma のバージョンを 2.12.0 に落とす必要がありそうなので、その変更を行います。~~
@@ -230,11 +220,11 @@ $ heroku config:set ENV_VAR_NAME="value"
 ```text:環境変数
 DATABASE_URL=<DATABASE_URL>
 SHADOW_DATABASE_URL=<DATABASE_URL>
-SERVER_IP="0.0.0.0"
-JWT_SECRET=supersecret
-USER_ID=id
-USER_PASS=pass
-BASE_PATH=/api
+API_JWT_SECRET=supersecret
+API_USER_ID=id
+API_USER_PASS=pass
+API_BASE_PATH=/api
+API_UPLOAD_DIR=upload
 API_ORIGIN=<APP_URL>
 ```
 
@@ -305,7 +295,7 @@ yarn install --cwd server && yarn build:client
 
 `APP_URL`は先ほどバックエンドのプロジェクトを作成した時にメモしたURLになります。
 ```text:環境変数
-BASE_PATH=/api
+API_BASE_PATH=/api
 API_ORIGIN=<APP_URL>
 ```
 
@@ -315,7 +305,12 @@ API_ORIGIN=<APP_URL>
 
 
 今回紹介したサンプルのソースコードは以下のリポジトリに置いています。
+
+記事投稿時の[create-frourio-app](//github.com/frouriojs/create-frourio-app)のバージョン
 https://github.com/IshinoJun/sample-frourio-build
+
+[create-frourio-app](//github.com/frouriojs/create-frourio-app)の`0.28.0`のバージョン
+https://github.com/IshinoJun/sample-frourio-build-1.1
 
 デプロイしたアプリは以下になります。
 https://sample-frourio-build.vercel.app
